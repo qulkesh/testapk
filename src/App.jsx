@@ -1,518 +1,331 @@
-\
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import "./styles.css";
 
-// -------------------------------------------------------------
-// DocFinder — минимальный MVP «поиск инструкций для оборудования»
-// Однофайловое React‑приложение: поиск, фильтры, сохранение в LocalStorage.
-// Готово к развёртыванию как статическая страница (Vite/CRA/Next static export).
-// -------------------------------------------------------------
+const CATEGORIES = ["Все", "Lifestyle", "Бег", "Баскетбол", "Лимитка"];
 
-// Типы
-const CATEGORIES = [
-  { id: "vfd", label: "ПЧВ (частотные приводы)" },
-  { id: "plc", label: "ПЛК" },
-  { id: "servo", label: "Сервоконтроллеры" },
-  { id: "hmi", label: "HMI панели" },
-  { id: "sensor", label: "Датчики / энкодеры" },
-  { id: "other", label: "Другое" },
+const SNEAKERS = [
+  {
+    id: "aurora",
+    name: "Aurora Runner",
+    brand: "Nike ZoomX",
+    price: 18990,
+    category: "Бег",
+    colorway: "Туман / Лаванда",
+    badge: "Новинка",
+    tagline: "Облачная амортизация и упругий толчок для длинных дистанций.",
+    limited: false,
+    rating: 4.9,
+    accent: "#b6b4ff",
+  },
+  {
+    id: "pulse",
+    name: "Pulse 97",
+    brand: "New Balance",
+    price: 21490,
+    category: "Lifestyle",
+    colorway: "Лёд / Хлопковый белый",
+    badge: "Топ недели",
+    tagline: "Слоистый upper с микрофиброй и воздушной подошвой FreshFoam.",
+    limited: false,
+    rating: 4.8,
+    accent: "#9ad6ff",
+  },
+  {
+    id: "solstice",
+    name: "Solstice Edge",
+    brand: "adidas Originals",
+    price: 23990,
+    category: "Лимитка",
+    colorway: "Пепел / Глиттер",
+    badge: "Limited drop",
+    tagline: "Металлизированные вставки, прозрачные панели и контрастные шнурки.",
+    limited: true,
+    rating: 4.95,
+    accent: "#ffd6f6",
+  },
+  {
+    id: "drift",
+    name: "Drift Court",
+    brand: "PUMA Hoops",
+    price: 17690,
+    category: "Баскетбол",
+    colorway: "Сапфир / Снег",
+    badge: "Energy return",
+    tagline: "Максимальная стабилизация и резкий отклик на паркете.",
+    limited: false,
+    rating: 4.7,
+    accent: "#b0e4ff",
+  },
+  {
+    id: "orbit",
+    name: "Orbit 2.0",
+    brand: "HOKA",
+    price: 20500,
+    category: "Бег",
+    colorway: "Молоко / Электрик",
+    badge: "Carbon ride",
+    tagline: "Карbon plate + rocker для бесшовного переката и скорости.",
+    limited: false,
+    rating: 4.85,
+    accent: "#d7f7ff",
+  },
+  {
+    id: "neon",
+    name: "Neon Nova",
+    brand: "ASICS",
+    price: 16290,
+    category: "Lifestyle",
+    colorway: "Мята / Кварц",
+    badge: "City ready",
+    tagline: "Сетчатый upper, отражающие элементы и мягкий гель.",
+    limited: false,
+    rating: 4.6,
+    accent: "#c6ffd5",
+  },
+  {
+    id: "zenith",
+    name: "Zenith Flow",
+    brand: "ON Cloud",
+    price: 22800,
+    category: "Бег",
+    colorway: "Холодный беж / Хром",
+    badge: "CloudTec®",
+    tagline: "Нейтральный бег с лёгким пружинящим эффектом и супер grip.",
+    limited: false,
+    rating: 4.88,
+    accent: "#d5d9ff",
+  },
+  {
+    id: "monolith",
+    name: "Monolith LX",
+    brand: "Y-3",
+    price: 27990,
+    category: "Лимитка",
+    colorway: "Графит / Опал",
+    badge: "Drop 02",
+    tagline: "Архитектурный силуэт с полупрозрачной подошвой и премиум нубуком.",
+    limited: true,
+    rating: 4.93,
+    accent: "#f2e8ff",
+  },
 ];
 
-// Базовые демо‑данные (можно удалить/заменить)
-const DEMO_DOCS = [
-  {
-    id: "1",
-    category: "vfd",
-    vendor: "Siemens",
-    model: "G120",
-    docType: "Руководство по эксплуатации",
-    title: "SINAMICS G120 — Commissioning Manual",
-    year: 2023,
-    lang: "EN",
-    link: "https://support.industry.siemens.com/",
-    tags: ["Параметры", "ПУСК/ОСТАНОВ", "Ошибки F"],
-  },
-  {
-    id: "2",
-    category: "plc",
-    vendor: "Siemens",
-    model: "S7-1200",
-    docType: "Справочник",
-    title: "S7-1200 System Manual",
-    year: 2022,
-    lang: "EN/RU",
-    link: "https://support.industry.siemens.com/",
-    tags: ["TIA Portal", "LAD", "FB/FC"],
-  },
-  {
-    id: "3",
-    category: "servo",
-    vendor: "SEW-Eurodrive",
-    model: "MDX61B (MOVIAXIS/MOVIDRIVE)",
-    docType: "Руководство по параметрам",
-    title: "IPOS / Ошибки Fxx / Параметрирование",
-    year: 2021,
-    lang: "EN/DE",
-    link: "https://www.sew-eurodrive.com/",
-    tags: ["IPOS", "F42", "Энкодер"],
-  },
-  {
-    id: "4",
-    category: "hmi",
-    vendor: "Weintek",
-    model: "MT8071iE",
-    docType: "Руководство",
-    title: "EasyBuilder Pro User Manual",
-    year: 2024,
-    lang: "EN",
-    link: "https://www.weintek.com/",
-    tags: ["Recipe", "Modbus", "Macros"],
-  },
-  {
-    id: "5",
-    category: "sensor",
-    vendor: "Autonics",
-    model: "E50S8-1024-3-T-24",
-    docType: "Datasheet",
-    title: "Incremental Rotary Encoder E50S8",
-    year: 2020,
-    lang: "EN",
-    link: "https://www.autonics.com/",
-    tags: ["PPR", "NPN/PNP", "Подключение"],
-  },
-  {
-    id: "6",
-    category: "vfd",
-    vendor: "INVT",
-    model: "GD20",
-    docType: "Руководство пользователя",
-    title: "GD20 User Manual",
-    year: 2019,
-    lang: "EN/RU",
-    link: "https://invt.com/",
-    tags: ["ПИД", "Параметры", "Ошибки"],
-  },
-];
+const formatPrice = (value) =>
+  new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 }).format(value);
 
-const STORAGE_KEY = "docfinder.customDocs.v1";
-
-function useLocalDocs() {
-  const [docs, setDocs] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      return JSON.parse(raw);
-    } catch (e) {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
-    } catch (e) {
-      // ignore
-    }
-  }, [docs]);
-
-  return [docs, setDocs];
-}
-
-function Tag({ children }) {
+function CategoryChip({ label, active, onClick }) {
   return (
-    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-      {children}
-    </span>
-  );
-}
-
-function Chip({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={
-        "rounded-full px-3 py-1 text-sm border transition " +
-        (active ? "bg-black text-white" : "hover:bg-gray-100")
-      }
-    >
-      {children}
+    <button className={`chip ${active ? "chip--active" : ""}`} onClick={onClick}>
+      {label}
     </button>
   );
 }
 
-function Field({ label, children }) {
+function Metric({ label, value }) {
   return (
-    <label className="block mb-3">
-      <div className="mb-1 text-sm text-gray-600">{label}</div>
-      {children}
-    </label>
+    <div className="metric glass">
+      <div className="metric__value">{value}</div>
+      <div className="metric__label">{label}</div>
+    </div>
   );
 }
 
-function EmptyState() {
+function ProductCard({ item, favorite, onToggleFavorite }) {
   return (
-    <div className="text-center py-16 border rounded-2xl">
-      <div className="text-xl font-medium">Ничего не найдено</div>
-      <div className="text-gray-500 mt-1">
-        Попробуйте уточнить запрос или снять часть фильтров.
+    <article className="product glass" style={{ "--accent": item.accent }}>
+      <div className="product__top">
+        <div className="product__badge">{item.badge}</div>
+        <button className={`icon-btn ${favorite ? "icon-btn--active" : ""}`} onClick={onToggleFavorite}>
+          <span>♥</span>
+        </button>
       </div>
-    </div>
+      <div className="product__brand">{item.brand}</div>
+      <div className="product__name">{item.name}</div>
+      <div className="product__meta">
+        <span>{item.colorway}</span>
+        <span>·</span>
+        <span>{item.category}</span>
+      </div>
+      <div className="product__price-row">
+        <div className="product__price">{formatPrice(item.price)}</div>
+        <div className="pill pill--soft">★ {item.rating.toFixed(2)}</div>
+      </div>
+      <p className="product__desc">{item.tagline}</p>
+      <div className="product__actions">
+        <button className="ghost-btn">Детали</button>
+        <button className="primary-btn">В корзину</button>
+      </div>
+    </article>
   );
 }
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
-  const [vendor, setVendor] = useState("all");
-  const [sort, setSort] = useState("relevance");
-  const [customDocs, setCustomDocs] = useLocalDocs();
-  const [addOpen, setAddOpen] = useState(false);
-
-  const allDocs = useMemo(() => [...DEMO_DOCS, ...customDocs], [customDocs]);
-  const vendors = useMemo(() => {
-    const set = new Set(allDocs.map((d) => d.vendor));
-    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [allDocs]);
+  const [category, setCategory] = useState("Все");
+  const [onlyLimited, setOnlyLimited] = useState(false);
+  const [favorites, setFavorites] = useState([]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = allDocs.filter((d) => {
-      if (category !== "all" && d.category !== category) return false;
-      if (vendor !== "all" && d.vendor !== vendor) return false;
-      if (!q) return true;
-      const hay = `${d.vendor} ${d.model} ${d.title} ${d.docType} ${d.tags?.join(" ") || ""} ${d.lang}`.toLowerCase();
-      return hay.includes(q);
+    return SNEAKERS.filter((item) => {
+      const matchesCategory = category === "Все" || item.category === category;
+      const matchesLimited = !onlyLimited || item.limited;
+      const haystack = `${item.name} ${item.brand} ${item.colorway} ${item.tagline}`.toLowerCase();
+      const matchesQuery = !q || haystack.includes(q);
+      return matchesCategory && matchesLimited && matchesQuery;
     });
+  }, [category, onlyLimited, query]);
 
-    if (sort === "year") list = list.sort((a, b) => (b.year || 0) - (a.year || 0));
-    if (sort === "vendor") list = list.sort((a, b) => a.vendor.localeCompare(b.vendor));
-    // relevance: оставляем как есть (по входному порядку)
-
-    return list;
-  }, [allDocs, category, vendor, query, sort]);
+  const toggleFavorite = (id) => {
+    setFavorites((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-black text-white grid place-items-center font-bold">
-            DF
-          </div>
-          <div className="flex-1">
-            <div className="text-lg font-semibold">DocFinder</div>
-            <div className="text-xs text-gray-500">
-              Поиск инструкций для ПЧВ, ПЛК, сервоконтроллеров и не только
+    <div className="page">
+      <div className="ambient ambient--one" />
+      <div className="ambient ambient--two" />
+      <div className="ambient ambient--three" />
+
+      <div className="shell">
+        <header className="topbar glass">
+          <div className="brand-mark">
+            <span className="brand-mark__dot" />
+            <div>
+              <div className="brand-mark__title">GlassKicks</div>
+              <div className="brand-mark__subtitle">магазин кроссовок</div>
             </div>
           </div>
-          <a
-            href="#"
-            className="text-sm text-gray-600 hover:text-black"
-            onClick={(e) => {
-              e.preventDefault();
-              setAddOpen(true);
-            }}
-          >
-            + Добавить источник
-          </a>
-        </div>
-      </header>
-
-      {/* Main */}
-      <main className="max-w-6xl mx-auto p-4">
-        {/* Search bar */}
-        <div className="bg-white rounded-2xl shadow-sm border p-4 mb-4">
-          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Поиск: ‘G120 параметр пуск’, ‘S7-1200 ladder’, ‘GD20 ошибка’"
-              className="flex-1 border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-black/10"
-            />
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="border rounded-xl px-3 py-2"
-            >
-              <option value="all">Все категории</option>
-              {CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={vendor}
-              onChange={(e) => setVendor(e.target.value)}
-              className="border rounded-xl px-3 py-2"
-            >
-              {vendors.map((v) => (
-                <option key={v} value={v}>
-                  {v === "all" ? "Все производители" : v}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="border rounded-xl px-3 py-2"
-            >
-              <option value="relevance">Сортировать: по релевантности</option>
-              <option value="year">Сначала новые</option>
-              <option value="vendor">По производителю (A→Z)</option>
-            </select>
+          <nav className="menu">
+            <a href="#catalog">Каталог</a>
+            <a href="#drops">Дропы</a>
+            <a href="#support">Поддержка</a>
+          </nav>
+          <div className="topbar__actions">
+            <button className="ghost-btn">Подбор</button>
+            <button className="primary-btn">Корзина</button>
           </div>
+        </header>
 
-          {/* Quick chips */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              { q: "F42", label: "Ошибки Fxx" },
-              { q: "IPOS", label: "IPOS" },
-              { q: "TIA Portal", label: "TIA Portal" },
-              { q: "Modbus", label: "Modbus" },
-              { q: "PID", label: "PID" },
-            ].map((c) => (
-              <Chip key={c.q} active={query.toLowerCase().includes(c.q.toLowerCase())} onClick={() => setQuery(c.q)}>
-                {c.label}
-              </Chip>
-            ))}
-          </div>
-        </div>
+        <main className="layout">
+          <section className="hero glass">
+            <div>
+              <div className="pill pill--soft">IOS 16 glass mood</div>
+              <h1>
+                Магазин кроссовок с <span className="accent">фрост</span>-эффектом и
+                актуальными дропами.
+              </h1>
+              <p className="lead">
+                Собрали беговые, баскетбольные и lifestyle пары в одном каталоге. Премиальные материалы,
+                лёгкие силуэты и ощущение, как на дисплее iPhone.
+              </p>
+              <div className="hero__actions">
+                <button className="primary-btn primary-btn--large">Смотреть каталог</button>
+                <button className="ghost-btn ghost-btn--large">Конфигуратор</button>
+              </div>
+              <div className="metrics">
+                <Metric label="Пар на складе" value="320+" />
+                <Metric label="Гарантия" value="12 мес" />
+                <Metric label="Доставка" value="1-2 дня" />
+              </div>
+            </div>
+            <div className="hero__card glass">
+              <div className="hero__tag">Дроп недели</div>
+              <div className="hero__shoe">Pulse 97</div>
+              <div className="hero__brand">New Balance · лед / белый</div>
+              <div className="hero__price">{formatPrice(21490)}</div>
+              <div className="hero__footer">
+                <span className="pill pill--soft">Доступно 12 размеров</span>
+                <button className="primary-btn">Забронировать</button>
+              </div>
+            </div>
+          </section>
 
-        {/* Results */}
-        {filtered.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {filtered.map((d) => (
-              <article key={d.id} className="bg-white border rounded-2xl p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-500">{labelByCategory(d.category)}</div>
-                    <h3 className="text-lg font-semibold leading-tight mt-0.5">
-                      {d.vendor} — {d.model}
-                    </h3>
-                  </div>
-                  {d.year ? (
-                    <div className="text-xs text-gray-500">{d.year}</div>
-                  ) : null}
+          <section id="catalog" className="panel glass">
+            <div className="panel__head">
+              <div>
+                <p className="eyebrow">Каталог</p>
+                <h2>Свежие пары с мягким стеклом</h2>
+              </div>
+              <div className="filter-row">
+                <div className="input glass">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Поиск по бренду, цвету или названию"
+                  />
+                  <span className="input__hint">⌘K</span>
                 </div>
-                <div className="mt-2 text-sm text-gray-700">{d.docType} · {d.lang}</div>
-                <div className="mt-1 font-medium">{d.title}</div>
-                {d.tags?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {d.tags.map((t) => (
-                      <Tag key={t}>{t}</Tag>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-3 flex gap-2">
-                  <a
-                    className="inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-                    href={d.link}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    title="Открыть документ"
-                  >
-                    Открыть документ
-                  </a>
-                  <button
-                    className="inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-                    onClick={() => copyToClipboard(summarizeDoc(d))}
-                    title="Скопировать карточку"
-                  >
-                    Копировать карточку
-                  </button>
+                <div className="toggle" onClick={() => setOnlyLimited((v) => !v)}>
+                  <div className={`toggle__thumb ${onlyLimited ? "toggle__thumb--on" : ""}`} />
+                  <span>Только лимитки</span>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+              </div>
+            </div>
 
-        {/* Footer tips */}
-        <div className="text-xs text-gray-500 mt-6">
-          Совет: добавляйте свои ссылки на PDF/вики/даташиты через «Добавить источник». Они сохранятся в браузере (LocalStorage).
-        </div>
-      </main>
-
-      {addOpen && (
-        <AddModal
-          onClose={() => setAddOpen(false)}
-          onSubmit={(doc) => {
-            setCustomDocs((prev) => [
-              ...prev,
-              { id: String(Date.now()), ...doc, tags: normTags(doc.tags) },
-            ]);
-            setAddOpen(false);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function labelByCategory(id) {
-  return CATEGORIES.find((c) => c.id === id)?.label || "Категория";
-}
-
-function summarizeDoc(d) {
-  return `${d.vendor} ${d.model} — ${d.docType} (${d.lang}${d.year ? ", " + d.year : ""})
-${d.title}
-${d.link}`;
-}
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Скопировано в буфер обмена");
-  } catch (e) {
-    alert("Не удалось скопировать");
-  }
-}
-
-function normTags(str) {
-  if (!str) return [];
-  return String(str)
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function AddModal({ onClose, onSubmit }) {
-  const [form, setForm] = useState({
-    category: "vfd",
-    vendor: "",
-    model: "",
-    docType: "Руководство",
-    title: "",
-    year: new Date().getFullYear(),
-    lang: "EN/RU",
-    link: "",
-    tags: "",
-  });
-
-  function set(k, v) {
-    setForm((f) => ({ ...f, [k]: v }));
-  }
-
-  const valid = form.vendor && form.model && form.title && form.link;
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
-      <div className="w-full max-w-xl bg-white rounded-2xl border shadow-xl p-4">
-        <div className="flex items-start justify-between">
-          <div className="text-lg font-semibold">Добавить источник</div>
-          <button className="text-gray-500 hover:text-black" onClick={onClose}>
-            Закрыть
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-          <Field label="Категория">
-            <select
-              value={form.category}
-              onChange={(e) => set("category", e.target.value)}
-              className="border rounded-xl px-3 py-2 w-full"
-            >
+            <div className="chips">
               {CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
+                <CategoryChip key={c} label={c} active={category === c} onClick={() => setCategory(c)} />
               ))}
-            </select>
-          </Field>
+            </div>
 
-          <Field label="Производитель">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="например, Siemens"
-              value={form.vendor}
-              onChange={(e) => set("vendor", e.target.value)}
-            />
-          </Field>
+            <div className="grid">
+              {filtered.map((item) => (
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  favorite={favorites.includes(item.id)}
+                  onToggleFavorite={() => toggleFavorite(item.id)}
+                />
+              ))}
+            </div>
 
-          <Field label="Модель / серия">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="напр., G120, S7-1200, GD20"
-              value={form.model}
-              onChange={(e) => set("model", e.target.value)}
-            />
-          </Field>
+            {filtered.length === 0 && (
+              <div className="empty glass">
+                <div className="empty__title">Ничего не нашли</div>
+                <div className="empty__text">Смените категорию или уберите фильтр лимиток.</div>
+              </div>
+            )}
+          </section>
 
-          <Field label="Тип документа">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="Руководство, Datasheet, QuickStart"
-              value={form.docType}
-              onChange={(e) => set("docType", e.target.value)}
-            />
-          </Field>
+          <section id="drops" className="panel panel--split">
+            <div className="glass mini-card">
+              <p className="eyebrow">Lookbook</p>
+              <h3>Тактильные материалы</h3>
+              <p>
+                Матовая кожа, прозрачные вставки и объёмные шнурки. Смотрится так же свежо, как стеклянные плитки на iOS.
+              </p>
+              <div className="stacked">
+                <span className="pill pill--soft">afterparty grey</span>
+                <span className="pill pill--soft">mint quartz</span>
+                <span className="pill pill--soft">night bloom</span>
+              </div>
+            </div>
+            <div className="glass mini-card">
+              <p className="eyebrow">Поддержка</p>
+              <h3>Фитинг и подбор</h3>
+              <p>
+                Онлайн-консультант подскажет размер, подберёт стельку и отправит пуш, когда ваш размер появится.
+              </p>
+              <div className="cta-row">
+                <button className="primary-btn">Написать</button>
+                <button className="ghost-btn">Частые вопросы</button>
+              </div>
+            </div>
+          </section>
+        </main>
 
-          <Field label="Название документа">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="Полное название"
-              value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Год">
-            <input
-              type="number"
-              className="border rounded-xl px-3 py-2 w-full"
-              value={form.year}
-              onChange={(e) => set("year", Number(e.target.value))}
-            />
-          </Field>
-
-          <Field label="Язык">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="EN/RU/DE"
-              value={form.lang}
-              onChange={(e) => set("lang", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Ссылка (URL)">
-            <input
-              className="border rounded-xl px-3 py-2 w-full"
-              placeholder="https://..."
-              value={form.link}
-              onChange={(e) => set("link", e.target.value)}
-            />
-          </Field>
-
-          <div className="md:col-span-2">
-            <Field label="Теги (через запятую)">
-              <input
-                className="border rounded-xl px-3 py-2 w-full"
-                placeholder="например: PID, Modbus, Ошибки"
-                value={form.tags}
-                onChange={(e) => set("tags", e.target.value)}
-              />
-            </Field>
+        <footer id="support" className="footer glass">
+          <div>
+            <div className="brand-mark__title">GlassKicks</div>
+            <div className="footer__text">Магазин кроссовок в эстетике iOS: чистые поверхности, мягкие блики и много воздуха.</div>
           </div>
-        </div>
-
-        <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-          <div>Подсказка: добавляйте ссылки на PDF или страницы поддержки производителя.</div>
-          <div>Сохраняется локально (LocalStorage).</div>
-        </div>
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button className="px-4 py-2 rounded-xl border" onClick={onClose}>
-            Отмена
-          </button>
-          <button
-            className="px-4 py-2 rounded-xl border bg-black text-white disabled:opacity-40"
-            disabled={!valid}
-            onClick={() => onSubmit(form)}
-          >
-            Добавить
-          </button>
-        </div>
+          <div className="footer__links">
+            <a href="#catalog">Каталог</a>
+            <a href="#drops">Дропы</a>
+            <a href="#support">Поддержка</a>
+          </div>
+          <div className="footer__badge">2024 · Россия</div>
+        </footer>
       </div>
     </div>
   );
